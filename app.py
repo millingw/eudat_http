@@ -58,7 +58,7 @@ class DigitalObject(Resource):
 
     def delete(self, object_id):
         document = mongo.get_object(object_id)
-        status = document['state']
+        status = document['status']
         if status == STATUS_DRAFT:
             mongo.set_status(object_id, status)
             return '', 204
