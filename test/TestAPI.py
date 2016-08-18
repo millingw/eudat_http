@@ -2,7 +2,7 @@ import unittest
 import json
 import requests
 import os, shutil
-from mongo import clear_metadata
+from .. mongo import clear_metadata
 
 
 TEST_URL = "http://127.0.0.1:5000/digitalobjects"
@@ -17,6 +17,10 @@ def ordered(obj):
         return sorted(ordered(x) for x in obj)
     else:
         return obj
+
+
+
+
 
 # clear the repository, ie nuke everything
 def clear_repository():
