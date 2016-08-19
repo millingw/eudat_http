@@ -46,7 +46,7 @@ class DigitalObject(Resource):
         return {"id": object_id, 
                 "metadata": document['metadata'],
                 "status": document['status'],
-                "files_count": len(os.listdir(d.get_data_dir(object_id)))}
+                "files_count": len(document['entities'])}
 
     def patch(self, object_id):
         body = request.get_json()
@@ -70,10 +70,15 @@ class DigitalObject(Resource):
 class DigitalEntities(Resource):
 
     def get(self, object_id):
-        result = []
-        for p in d.list_files(d.get_data_dir(object_id)):
-            result.append({"id": p})
-        return result
+
+        result = mongo.get_object(object_id)
+        entities = result['entities']
+        entity_ids = []
+        if entities == None:
+            return entity_ids
+        for entity in entities:
+            entity_ids.append( {'id': entity['entity_id']} )
+        return entity_ids
 
     def post(self, object_id):
         datafile = request.files['file']
@@ -88,7 +93,7 @@ class DigitalEntities(Resource):
                       "name": file_name,
                       "length": file_length, 
                       "checksum": file_hash}
-        mongo.update_entity(entity_id, file_name)
+        mongo.update_entity(object_id, entity_id, file_name)
         return entity_md
 
 
@@ -99,7 +104,7 @@ class DigitalEntity(Resource):
 
     def delete(self, object_id, entity_id):
         os.remove(os.path.join(d.get_data_dir(object_id), entity_id))
-        mongo.delete_entity(entity_id)
+        mongo.delete_entity(object_id, entity_id)
         return '', 204
 
 

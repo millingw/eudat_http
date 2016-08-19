@@ -111,6 +111,7 @@ class TestAPI(unittest.TestCase):
 
       # confirm that the entity ids match up with those returned by a get request on the parent object
       r = requests.get(TEST_URL + "/" + objectid + "/entities" )
+
       self.assertEqual(sorted(entity_ids), sorted(r.json()))
 
       # request the entities, verify

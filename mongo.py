@@ -29,7 +29,7 @@ def store_metadata(object_id, metadata, status=DEFAULTSTATUS):
     db.objects.update_one(
         {'object_id': object_id},
          {'$set':
-             {'object_id': object_id, 'metadata': metadata, 'status': status},
+             {'object_id': object_id, 'metadata': metadata, 'status': status, 'entities': [] },
          },
         upsert=True
     )
@@ -73,7 +73,7 @@ def set_status(object_id, status):
 
 
 # add or update an entity
-def update_entity(entity_id, filename):
+def update_entity_old(entity_id, filename):
     client = MongoClient()
     db = client[MONGODATABASENAME]
     db.entities.update_one(
@@ -86,8 +86,21 @@ def update_entity(entity_id, filename):
     )
 
 
+def update_entity(object_id, entity_id, filename):
+
+    client = MongoClient()
+    db = client[MONGODATABASENAME]
+
+    db.objects.update_one(
+        {'object_id': object_id},
+        { '$addToSet' :
+             {"entities" : {'filename' : filename , 'entity_id' : entity_id }}
+        }
+    )
+
+
 # get information about an entity
-def get_entity(entity_id):
+def get_entity_old(entity_id):
     client = MongoClient()
     db = client[MONGODATABASENAME]
 
@@ -96,11 +109,34 @@ def get_entity(entity_id):
     return document
 
 
+# get information about an entity
+def get_entity(object_id, entity_id):
+    client = MongoClient()
+    db = client[MONGODATABASENAME]
+
+     # look for an existing entity
+    document = db.objects.find_one({'object_id': object_id, 'entities.entity_id': entity_id})
+    return document
+
+
 # delete an entity
-def delete_entity(entity_id):
+def delete_entity_old(entity_id):
      client = MongoClient()
      db = client[MONGODATABASENAME]
      db.entities.delete_one( {'entity_id': entity_id})
+
+
+# delete an entity
+def delete_entity(object_id, entity_id):
+     client = MongoClient()
+     db = client[MONGODATABASENAME]
+
+     db.objects.update_one(
+        {'object_id': object_id},
+        { '$pull' :
+             {"entities" : {'entity_id' : entity_id }}
+        }
+    )
 
 
 
