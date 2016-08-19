@@ -26,9 +26,11 @@ def store_metadata(object_id, metadata, status=DEFAULTSTATUS):
     client = MongoClient()
     db = client[MONGODATABASENAME]
 
-    db.objects.update(
+    db.objects.update_one(
         {'object_id': object_id},
-        {'object_id': object_id, 'metadata': metadata, 'status': status},
+         {'$set':
+             {'object_id': object_id, 'metadata': metadata, 'status': status},
+         },
         upsert=True
     )
 
@@ -61,10 +63,12 @@ def set_status(object_id, status):
 
     client = MongoClient()
     db = client[MONGODATABASENAME]
-    db.objects.update(
+    db.objects.update_one(
         {'object_id': object_id},
-        {'status': status},
-        upsert=False
+        {'$set':
+             {'status': status}
+         },
+         upsert=False
     )
 
 
@@ -72,9 +76,12 @@ def set_status(object_id, status):
 def update_entity(entity_id, filename):
     client = MongoClient()
     db = client[MONGODATABASENAME]
-    db.entities.update(
+    db.entities.update_one(
         {'entity_id': entity_id},
-        {'filename': filename},
+        {'$set':
+             {'filename': filename}
+         }
+        ,
         upsert=True
     )
 
