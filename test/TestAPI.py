@@ -2,7 +2,7 @@ import unittest
 import json
 import requests
 import os, shutil
-from .. mongo import clear_metadata
+from mongo import clear_metadata
 
 
 TEST_URL = "http://127.0.0.1:5000/digitalobjects"
@@ -39,6 +39,26 @@ def clear_repository():
 
 
 class TestAPI(unittest.TestCase):
+
+
+  # create an object and change its status
+  def testCreateObjectSetStatus(self):
+      objectid = None
+      with open("../metadata.json") as f:
+           metadata = json.load(f)
+           r = requests.post(TEST_URL, json=metadata )
+           self.assertEqual(200, r.status_code)
+           objectcontent = r.json()
+           objectid = objectcontent['id']
+
+           # now try and set the object status
+           r = requests.patch(TEST_URL + "/" + objectid, json={'status': 'deleted'})
+           self.assertEqual(200, r.status_code)
+
+           r = requests.get(TEST_URL + "/" + objectid)
+           retrievedObject = r.json()
+           self.assertEqual('deleted', retrievedObject['status'])
+
 
   # create an object using a test json metadata payload
   # then verify we can retrieve it ok
@@ -114,7 +134,25 @@ class TestAPI(unittest.TestCase):
 
       self.assertEqual(sorted(entity_ids), sorted(r.json()))
 
-      # request the entities, verify
+      # update an entity, verify we changed it's name ok
+      testfilename = "blah.txt"
+      r = requests.patch(TEST_URL + "/" + objectid + "/entities" + "/" + entity_ids[0]['id'], json={'filename': testfilename})
+      self.assertEqual(204, r.status_code)
+      r = requests.get(TEST_URL + "/" + objectid + "/entities" + "/" + entity_ids[0]['id'])
+      self.assertEqual(200, r.status_code)
+      object_content = r.json()
+      self.assertEqual(testfilename, object_content['filename'])
+
+      # check the existing entity filenames didnt change
+      for i in range(1, 4):
+          r = requests.get(TEST_URL + "/" + objectid + "/entities" + "/" + entity_ids[i]['id'])
+          self.assertEqual(200, r.status_code)
+          object_content = r.json()
+          self.assertEqual("entity.txt", object_content['filename'])
+
+
+
+
 
  # create several objects and check we can retrieve their ids
   def testCreateAndRetrieveObjects(self):

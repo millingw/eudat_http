@@ -43,12 +43,19 @@ class DigitalObject(Resource):
 
     def get(self, object_id):
         document = mongo.get_object(object_id)
+        entities = mongo.get_object_entities(object_id)
+        entity_ids = []
+        for entity in entities:
+            entity_ids.append( {'id': entity['entity_id']} )
+
         return {"id": object_id, 
                 "metadata": document['metadata'],
                 "status": document['status'],
-                "files_count": len(document['entities'])}
+                "files_count": len(entity_ids),
+                "entities": entity_ids}
 
     def patch(self, object_id):
+
         body = request.get_json()
         if 'status' not in body:
             return {'message' : 'Invalid request: Status expected.'}, 400
@@ -71,12 +78,11 @@ class DigitalEntities(Resource):
 
     def get(self, object_id):
 
-        result = mongo.get_object(object_id)
-        entities = result['entities']
+        result = mongo.get_object_entities(object_id)
         entity_ids = []
-        if entities == None:
+        if result == None:
             return entity_ids
-        for entity in entities:
+        for entity in result:
             entity_ids.append( {'id': entity['entity_id']} )
         return entity_ids
 
@@ -105,6 +111,14 @@ class DigitalEntity(Resource):
     def delete(self, object_id, entity_id):
         os.remove(os.path.join(d.get_data_dir(object_id), entity_id))
         mongo.delete_entity(object_id, entity_id)
+        return '', 204
+
+    def patch(self, object_id, entity_id):
+        body = request.get_json()
+        if 'filename' not in body:
+            return {'message' : 'Invalid request: filename expected.'}, 400
+        filename = body['filename']
+        mongo.update_entity(object_id, entity_id, filename)
         return '', 204
 
 
