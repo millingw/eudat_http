@@ -44,15 +44,12 @@ class DigitalObject(Resource):
     def get(self, object_id):
         document = mongo.get_object(object_id)
         entities = mongo.get_object_entities(object_id)
-        entity_ids = []
-        for entity in entities:
-            entity_ids.append( {'id': entity['entity_id']} )
 
         return {"id": object_id, 
                 "metadata": document['metadata'],
                 "status": document['status'],
-                "files_count": len(entity_ids),
-                "entities": entity_ids}
+                "files_count": len(entities),
+                "entities": entities}
 
     def patch(self, object_id):
 
@@ -75,6 +72,8 @@ class DigitalObject(Resource):
 
 
 class DigitalEntities(Resource):
+
+
 
     def get(self, object_id):
 
@@ -99,14 +98,37 @@ class DigitalEntities(Resource):
                       "name": file_name,
                       "length": file_length, 
                       "checksum": file_hash}
-        mongo.update_entity(object_id, entity_id, file_name)
+        mongo.add_entity(object_id, entity_id, file_name, file_length, file_hash)
         return entity_md
 
 
+def request_wants_json(request):
+        best = request.accept_mimetypes \
+            .best_match(['application/json', 'text/html'])
+        return best == 'application/json' and \
+            request.accept_mimetypes[best] > \
+            request.accept_mimetypes['text/html']
+
 class DigitalEntity(Resource):
 
+
+
+
+    # look at the content request type -
+    # if its json, we return the entity metadata
+    # otherwise, we return the contents of the metadata file
     def get(self, object_id, entity_id):
-        return send_from_directory(directory=d.get_data_dir(object_id), filename=entity_id)
+
+        #### DEBUG ####
+        print("***********")
+        for header in request.headers:
+            print(header)
+        print("************")
+
+        if request_wants_json(request):
+            return mongo.get_entity(object_id, entity_id)
+        else:
+            return send_from_directory(directory=d.get_data_dir(object_id), filename=entity_id)
 
     def delete(self, object_id, entity_id):
         os.remove(os.path.join(d.get_data_dir(object_id), entity_id))

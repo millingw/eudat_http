@@ -71,6 +71,19 @@ def set_status(object_id, status):
          upsert=False
     )
 
+
+def add_entity(object_id, entity_id, filename, length, checksum):
+    client = MongoClient()
+    db = client[MONGODATABASENAME]
+
+    db.entities.update_one(
+        {'object_id': object_id, 'entity_id': entity_id},
+            { '$set' :
+                 {'entity_id' : entity_id, 'object_id': object_id, 'filename': filename, 'length': length, 'checksum': checksum }
+            },
+            upsert=True
+    )
+
 def update_entity(object_id, entity_id, filename):
 
     client = MongoClient()
@@ -81,7 +94,7 @@ def update_entity(object_id, entity_id, filename):
             { '$set' :
                  {'entity_id' : entity_id, 'object_id': object_id, 'filename': filename }
             },
-            upsert=True
+            upsert=False
     )
 
 
@@ -99,7 +112,11 @@ def get_entity(object_id, entity_id):
 def get_object_entities(object_id):
     client = MongoClient()
     db = client[MONGODATABASENAME]
-    entities = db.entities.find({'object_id': object_id})
+    entity_cursor = db.entities.find({'object_id': object_id})
+    entities = []
+    for entity in entity_cursor:
+        entities.append(entity)
+
     return entities
 
 

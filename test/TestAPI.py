@@ -138,7 +138,7 @@ class TestAPI(unittest.TestCase):
       testfilename = "blah.txt"
       r = requests.patch(TEST_URL + "/" + objectid + "/entities" + "/" + entity_ids[0]['id'], json={'filename': testfilename})
       self.assertEqual(204, r.status_code)
-      r = requests.get(TEST_URL + "/" + objectid + "/entities" + "/" + entity_ids[0]['id'])
+      r = requests.get(TEST_URL + "/" + objectid + "/entities" + "/" + entity_ids[0]['id'], headers={'Accept':'application/json'})
       self.assertEqual(200, r.status_code)
       object_content = r.json()
       self.assertEqual(testfilename, object_content['filename'])
