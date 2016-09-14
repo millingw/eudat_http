@@ -38,14 +38,14 @@ def store_metadata(object_id, metadata, status=DEFAULTSTATUS):
 # get an object's metadata, or None if the object does not exist
 def get_metadata(object_id):
     document = get_object(object_id)
-    if document == None:
+    if document is None:
         return None
     return document['metadata']
 
 # get an object's status
 def get_status(object_id):
     document = get_object(object_id)
-    if document == None:
+    if document is None:
         return None
     return document['status']
 
@@ -54,7 +54,7 @@ def get_object(object_id):
     client = MongoClient()
     db = client[MONGODATABASENAME]
     document = db.objects.find_one({'object_id': object_id})
-    if document == None:
+    if document is None:
         return None
     return document
 
@@ -105,7 +105,10 @@ def get_entity(object_id, entity_id):
 
      # look for an existing entity
     document = db.entities.find_one({'object_id': object_id, 'entity_id': entity_id})
-    return document
+    if document is None:
+        return None
+    else:
+        return document
 
 
 # get the entities for an object
@@ -115,7 +118,7 @@ def get_object_entities(object_id):
     entity_cursor = db.entities.find({'object_id': object_id})
     entities = []
     for entity in entity_cursor:
-        entities.append(entity)
+        entities.append({'id': entity['entity_id']})
 
     return entities
 

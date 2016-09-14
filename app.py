@@ -6,7 +6,6 @@ curl -X POST --form "file=@/tmp/test.txt" http://127.0.0.1:5000/digitalobjects/e
 
 import os
 import uuid
-import json
 
 from flask import Flask, request, send_from_directory
 from flask_restful import Resource, Api
@@ -64,7 +63,7 @@ class DigitalObject(Resource):
         document = mongo.get_object(object_id)
         status = document['status']
         if status == STATUS_DRAFT:
-            mongo.set_status(object_id, status)
+            mongo.set_status(object_id, STATUS_DELETED)
             return '', 204
         else:
             return {'message': 'Digital object is not in draft status'}, 405
@@ -78,12 +77,9 @@ class DigitalEntities(Resource):
     def get(self, object_id):
 
         result = mongo.get_object_entities(object_id)
-        entity_ids = []
-        if result == None:
-            return entity_ids
-        for entity in result:
-            entity_ids.append( {'id': entity['entity_id']} )
-        return entity_ids
+        if result is None:
+            return []
+        return result
 
     def post(self, object_id):
         datafile = request.files['file']
@@ -119,16 +115,22 @@ class DigitalEntity(Resource):
     # otherwise, we return the contents of the metadata file
     def get(self, object_id, entity_id):
 
-        #### DEBUG ####
-        print("***********")
-        for header in request.headers:
-            print(header)
-        print("************")
+        entity = mongo.get_entity(object_id, entity_id)
+        if entity is None:
+            return '', 404
 
-        if request_wants_json(request):
-            return mongo.get_entity(object_id, entity_id)
-        else:
+        accept_type = request.headers['Accept']
+        if accept_type is None:
+            return 'Missing Accept type', 400
+
+        if accept_type == "application/json":
+            # cant return it directly as ObjectID is not serializable
+            return {'id': entity['entity_id'], 'filename': entity['filename'],'checksum': entity['checksum'], 'length': entity['length']}
+        elif accept_type == "application/octet-stream":
             return send_from_directory(directory=d.get_data_dir(object_id), filename=entity_id)
+        else:
+            return "Accept must be application/json or application/octet-stream"
+
 
     def delete(self, object_id, entity_id):
         os.remove(os.path.join(d.get_data_dir(object_id), entity_id))

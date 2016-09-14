@@ -2,7 +2,7 @@ import unittest
 import json
 import requests
 import os, shutil
-from mongo import clear_metadata
+from ..mongo import clear_metadata
 
 
 TEST_URL = "http://127.0.0.1:5000/digitalobjects"
@@ -93,7 +93,8 @@ class TestAPI(unittest.TestCase):
       self.assertEqual(entity_size, entitycontent['length'])
 
       # check we can retrieve the entity file
-      r = requests.get(TEST_URL + "/" + objectid + "/entities/" + entitycontent['id'] )
+      r = requests.get(TEST_URL + "/" + objectid + "/entities/" + entitycontent['id'],
+                       headers={"Accept":"application/octet-stream"} )
       self.assertEqual(200, r.status_code)
 
       # compare the content with the original file
@@ -145,7 +146,7 @@ class TestAPI(unittest.TestCase):
 
       # check the existing entity filenames didnt change
       for i in range(1, 4):
-          r = requests.get(TEST_URL + "/" + objectid + "/entities" + "/" + entity_ids[i]['id'])
+          r = requests.get(TEST_URL + "/" + objectid + "/entities" + "/" + entity_ids[i]['id'], headers={'Accept':'application/json'})
           self.assertEqual(200, r.status_code)
           object_content = r.json()
           self.assertEqual("entity.txt", object_content['filename'])
