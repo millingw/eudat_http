@@ -2,7 +2,7 @@ import unittest
 import json
 import requests
 import os, shutil
-from ..mongo import clear_metadata
+from ..settings import STORAGE_DIR, md_store as md
 
 
 TEST_URL = "http://127.0.0.1:5000/digitalobjects"
@@ -24,18 +24,9 @@ def ordered(obj):
 
 # clear the repository, ie nuke everything
 def clear_repository():
-
-    clear_metadata()
-    for f in os.listdir(TEST_REPOSITORY_DIR):
-        file_path = os.path.join(TEST_REPOSITORY_DIR, f)
-        try:
-            if os.path.isfile(file_path):
-                os.unlink(file_path)
-            elif os.path.isdir(file_path):
-                shutil.rmtree(file_path)
-        except Exception as e:
-           print(e)
-
+    shutil.rmtree(STORAGE_DIR)
+    os.makedirs(STORAGE_DIR)
+    md.clear_metadata()
 
 
 class TestAPI(unittest.TestCase):
@@ -137,19 +128,19 @@ class TestAPI(unittest.TestCase):
 
       # update an entity, verify we changed it's name ok
       testfilename = "blah.txt"
-      r = requests.patch(TEST_URL + "/" + objectid + "/entities" + "/" + entity_ids[0]['id'], json={'filename': testfilename})
+      r = requests.patch(TEST_URL + "/" + objectid + "/entities" + "/" + entity_ids[0]['id'], json={'name': testfilename})
       self.assertEqual(204, r.status_code)
       r = requests.get(TEST_URL + "/" + objectid + "/entities" + "/" + entity_ids[0]['id'], headers={'Accept':'application/json'})
       self.assertEqual(200, r.status_code)
       object_content = r.json()
-      self.assertEqual(testfilename, object_content['filename'])
+      self.assertEqual(testfilename, object_content['name'])
 
       # check the existing entity filenames didnt change
       for i in range(1, 4):
           r = requests.get(TEST_URL + "/" + objectid + "/entities" + "/" + entity_ids[i]['id'], headers={'Accept':'application/json'})
           self.assertEqual(200, r.status_code)
           object_content = r.json()
-          self.assertEqual("entity.txt", object_content['filename'])
+          self.assertEqual("entity.txt", object_content['name'])
 
 
 

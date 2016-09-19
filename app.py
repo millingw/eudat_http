@@ -10,20 +10,18 @@ import uuid
 from flask import Flask, request, send_from_directory
 from flask_restful import Resource, Api
 import digital_objects as d
-import mongo
+#import mongo
 
-STATUS_DRAFT = 'draft'
-STATUS_COMMITTED = 'committed'
-STATUS_PUBLISHED = 'published'
-STATUS_DELETED = 'deleted'
+from settings import md_store as md, STATUS_DRAFT, STATUS_DELETED
 
 app = Flask(__name__)
 api = Api(app)
 
 class DigitalObjects(Resource):
+
     def get(self):
         result = []
-        objects = mongo.list_objects()
+        objects = md.list_objects()
         for p in objects:
             result.append({"id": p['object_id']})
         return result
@@ -33,7 +31,8 @@ class DigitalObjects(Resource):
         metadata = request.get_json()
         if not metadata:
             metadata = {}
-        mongo.store_metadata(object_id, metadata)
+        md.store_metadata(object_id, metadata)
+        md.set_status(object_id, STATUS_DRAFT)
 
         return {"id": object_id}
 
@@ -41,8 +40,11 @@ class DigitalObjects(Resource):
 class DigitalObject(Resource):
 
     def get(self, object_id):
-        document = mongo.get_object(object_id)
-        entities = mongo.get_object_entities(object_id)
+
+        document = md.get_object(object_id)
+        if document is None:
+            return {'message': 'Digital object not found: %s' % object_id}, 404
+        entities = md.get_object_entities(object_id)
 
         return {"id": object_id, 
                 "metadata": document['metadata'],
@@ -51,19 +53,17 @@ class DigitalObject(Resource):
                 "entities": entities}
 
     def patch(self, object_id):
-
         body = request.get_json()
-        if 'status' not in body:
+        if body is None or 'status' not in body:
             return {'message' : 'Invalid request: Status expected.'}, 400
         new_status = body['status']
-        mongo.set_status(object_id, new_status)
+        md.set_status(object_id, new_status)
         return {"id": object_id, "status": new_status}
 
     def delete(self, object_id):
-        document = mongo.get_object(object_id)
-        status = document['status']
+        status = md.get_status(object_id)
         if status == STATUS_DRAFT:
-            mongo.set_status(object_id, STATUS_DELETED)
+            md.set_status(object_id, STATUS_DELETED)
             return '', 204
         else:
             return {'message': 'Digital object is not in draft status'}, 405
@@ -72,11 +72,9 @@ class DigitalObject(Resource):
 
 class DigitalEntities(Resource):
 
-
-
     def get(self, object_id):
 
-        result = mongo.get_object_entities(object_id)
+        result = md.get_object_entities(object_id)
         if result is None:
             return []
         return result
@@ -85,29 +83,10 @@ class DigitalEntities(Resource):
         datafile = request.files['file']
         file_name = datafile.filename
         entity_id = str(uuid.uuid4())
-        #entity_id = file_name
-        entity_path = os.path.join(d.get_data_dir(object_id), entity_id)
-        datafile.save(entity_path)
-        file_length = os.path.getsize(entity_path)
-        file_hash = d.get_checksum(entity_path)
-        entity_md =  {"id": entity_id, 
-                      "name": file_name,
-                      "length": file_length, 
-                      "checksum": file_hash}
-        mongo.add_entity(object_id, entity_id, file_name, file_length, file_hash)
-        return entity_md
+        return d.create_entity(object_id, entity_id, datafile)
 
-
-def request_wants_json(request):
-        best = request.accept_mimetypes \
-            .best_match(['application/json', 'text/html'])
-        return best == 'application/json' and \
-            request.accept_mimetypes[best] > \
-            request.accept_mimetypes['text/html']
 
 class DigitalEntity(Resource):
-
-
 
 
     # look at the content request type -
@@ -115,34 +94,37 @@ class DigitalEntity(Resource):
     # otherwise, we return the contents of the metadata file
     def get(self, object_id, entity_id):
 
-        entity = mongo.get_entity(object_id, entity_id)
+        entity = md.get_entity(object_id, entity_id)
         if entity is None:
             return '', 404
 
         accept_type = request.headers['Accept']
-        if accept_type is None:
-            return 'Missing Accept type', 400
 
         if accept_type == "application/json":
             # cant return it directly as ObjectID is not serializable
-            return {'id': entity['entity_id'], 'filename': entity['filename'],'checksum': entity['checksum'], 'length': entity['length']}
-        elif accept_type == "application/octet-stream":
-            return send_from_directory(directory=d.get_data_dir(object_id), filename=entity_id)
+            return {'id': entity['entity_id'], 'name': entity['name'],'checksum': entity['checksum'], 'length': entity['length']}
         else:
-            return "Accept must be application/json or application/octet-stream"
+            return send_from_directory(directory=d.get_data_dir(object_id), filename=entity_id)
+
 
 
     def delete(self, object_id, entity_id):
-        os.remove(os.path.join(d.get_data_dir(object_id), entity_id))
-        mongo.delete_entity(object_id, entity_id)
-        return '', 204
+        status = md.get_status(object_id)
+        if status != STATUS_DRAFT:
+            return {'message': 'Digital object is not in draft status'}, 405
+        try:
+            os.remove(os.path.join(d.get_data_dir(object_id), entity_id))
+            md.delete_entity(object_id, entity_id)
+            return '', 204
+        except:
+            return '', 404
 
     def patch(self, object_id, entity_id):
         body = request.get_json()
-        if 'filename' not in body:
+        if 'name' not in body:
             return {'message' : 'Invalid request: filename expected.'}, 400
-        filename = body['filename']
-        mongo.update_entity(object_id, entity_id, filename)
+        name = body['name']
+        md.update_entity(object_id, entity_id, name)
         return '', 204
 
 

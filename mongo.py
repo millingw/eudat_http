@@ -5,6 +5,8 @@ from settings import MONGODATABASENAME, DEFAULTSTATUS
 # stores objects in collection "objects"
 # stores entities in collection "entities"
 
+# DEPRECATED - use metadata_mongo instead
+
 def clear_metadata():
     # clear the collections - for testing purposes only!
     client = MongoClient()
